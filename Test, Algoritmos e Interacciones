@@ -1,1 +1,102 @@
+// Comenta esta línea si estás utilizando Arduino IDE.
+// #include <Arduino.h>
+
+// Librerías para ESP32
+#include <HTTPClient.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WiFiManager.h>
+#include <WebServer.h>
+
+// Librería para LCD I2C
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// Librerías para ESP8266
+// #include <ESP8266WiFiMulti.h>
+// #include <ESP8266HTTPClient.h>
+
+const char* ssid = "#";        // Tu SSID WiFi
+const char* password =  "#";   // Tu contraseña WiFi
+
+String ALARMA = "1";            // Valor de alarma
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+const int botonPin = 8;        // Pin del botón
+int estadoBoton;
+
+void setup() {
+  delay(10);
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  Serial.print("Conectando...");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.print("Conectado con éxito, mi IP es: ");
+  Serial.println(WiFi.localIP());
+  pinMode(botonPin, INPUT);
+  lcd.begin();
+  lcd.createChar(0, customChar);
+  lcd.home();
+}
+
+void loop() {
+  bool segundoBotonPresionado = false;
+  int estado = digitalRead(botonPin);
+  
+  while (estado == HIGH && segundoBotonPresionado == false) {
+    ALERTA();
+    digitalWrite(pinLed, HIGH);
+    delay(500);
+    digitalWrite(pinLed, LOW);
+    delay(500);
+    
+    if(WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      String datos_a_enviar = ALARMA;
+
+      http.begin("#");  // Indica el destino
+      http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+      
+      int codigo_respuesta = http.POST(datos_a_enviar);
+
+      if(codigo_respuesta > 0) {
+        Serial.println("Código HTTP ► " + String(codigo_respuesta));
+
+        if(codigo_respuesta == 200) {
+          String cuerpo_respuesta = http.getString();
+          Serial.println("El servidor respondió ▼ ");
+          Serial.println(cuerpo_respuesta);
+        }
+      } else {
+        Serial.print("Error enviando POST, código: ");
+        Serial.println(codigo_respuesta);
+      }
+      http.end();
+    } else {
+      Serial.println("Error en la conexión WIFI");
+    }
+    delay(2000);
+    int estado2 = digitalRead(botonPin);
+    
+    if (estado2 == HIGH) {
+      segundoBotonPresionado = true;
+    }
+  }
+  digitalWrite(pinled2, HIGH);
+  delay(1000);
+  digitalWrite(pinled2, LOW);
+  delay(1000);
+}
+
+void ALERTA() {
+  lcd.backlight();
+  lcd.setCursor(0,0);
+  lcd.print("ALERTA");
+  lcd.setCursor(0,1);
+  lcd.print("ALERTA");
+}
 
